@@ -22,8 +22,8 @@ app.registerExtension({
 				// Clear sessionStorage if used
 				sessionStorage.clear();
 
-				// Redirect to logout endpoint
-				window.location.href = "/logout";
+				// Redirect to logout endpoint (relative, so it works behind a reverse-proxy path prefix e.g. /comfy)
+				window.location.href = "logout";
 			}
 		}
 	],

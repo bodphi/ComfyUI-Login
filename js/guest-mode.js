@@ -5,7 +5,7 @@ app.registerExtension({
 	init() {},
 	async setup() {
         try {
-            const response = await fetch("/guest_mode");
+            const response = await fetch("guest_mode"); // relative, so it works behind a reverse-proxy path prefix (e.g. /comfy)
             if (response.ok) {
                 const data = await response.json();
                 if (data.guestMode) {

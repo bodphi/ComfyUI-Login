@@ -82,7 +82,7 @@ async def get_root(request):
     session = await get_session(request)
     wrong_password = request.query.get('wrong_password', '')
     if 'logged_in' in session and session['logged_in']:
-        raise web.HTTPFound('/')
+        raise web.HTTPFound('.')  # Relative redirect, so it works behind a reverse-proxy path prefix (e.g. /comfy)
     else:
         env = Environment(
             loader=FileSystemLoader(node_dir),
@@ -111,7 +111,7 @@ async def login_handler(request):
     if guest_mode and os.path.exists(guest_mode_path):
         session = await get_session(request)
         session['guest_mode'] = True
-        return web.HTTPFound('/')
+        return web.HTTPFound('.')  # Relative redirect, so it works behind a reverse-proxy path prefix (e.g. /comfy)
 
     if os.path.exists(password_path):
         # Existing user login attempt
@@ -128,9 +128,9 @@ async def login_handler(request):
                     file.write(password_cached + b'\n' + username_input.encode('utf-8'))
                 user_cache['username'] = username_input
                 session['username'] = username_input
-            return web.HTTPFound('/')  # Redirect to the main page if the password is correct
+            return web.HTTPFound('.')  # Redirect to the main page if the password is correct (relative, for reverse-proxy path prefix)
         else:
-            return web.HTTPFound('/login?wrong_password=1')
+            return web.HTTPFound('login?wrong_password=1')  # Relative redirect, so it works behind a reverse-proxy path prefix (e.g. /comfy)
     else:
         # New user setup
         salt = bcrypt.gensalt()
@@ -142,8 +142,8 @@ async def login_handler(request):
         session = await get_session(request)
         session['logged_in'] = True
         session['username'] = username_input
-        return web.HTTPFound('/')
-    return web.HTTPFound('/login') # will not be reached
+        return web.HTTPFound('.')  # Relative redirect, so it works behind a reverse-proxy path prefix (e.g. /comfy)
+    return web.HTTPFound('login') # will not be reached; relative, for reverse-proxy path prefix
 
 @routes.get("/logout")
 async def get_root(request):
@@ -152,7 +152,7 @@ async def get_root(request):
     session['guest_mode'] = False
     session.pop('username', None)  # Clear the username
     session.pop('guest_mode', None)  # Clear the username
-    response = web.HTTPFound('/login')  # Redirect to the main page if the password is correct
+    response = web.HTTPFound('login')  # Relative redirect, so it works behind a reverse-proxy path prefix (e.g. /comfy)
     return response
 
 @routes.get("/guest_mode")
@@ -191,6 +191,24 @@ async def process_request(request, handler):
     if request.path == '/':  # Prevent caching the main page after logout
         response.headers.setdefault('Cache-Control', 'no-cache')
     return response
+
+def get_login_redirect_location(request):
+    """Redirect target for the login page that works behind a reverse-proxy path prefix (e.g. /comfy).
+
+    The proxy strips the prefix before forwarding, so the application cannot see it.
+    Browsers resolve relative redirect targets against the current URL (which keeps
+    the prefix), so a relative Location header works for both a single-segment prefix
+    and no prefix at all. If the proxy sets X-Forwarded-Prefix
+    (proxy_set_header X-Forwarded-Prefix /comfy;), it is used directly, which also
+    supports multi-segment prefixes.
+    """
+    prefix = request.headers.get('X-Forwarded-Prefix', '').rstrip('/')
+    if prefix:
+        return f'{prefix}/login'
+    segments = [segment for segment in request.path.split('/') if segment]
+    # One '..' per segment of the browser URL's base directory.
+    depth = len(segments) if request.path.endswith('/') else max(len(segments) - 1, 0)
+    return '../' * depth + 'login'
 
 @web.middleware
 async def check_login_status(request: web.Request, handler):
@@ -238,7 +256,7 @@ async def check_login_status(request: web.Request, handler):
     # unauthorized access
     accept_header = request.headers.get('Accept', '')
     if 'text/html' in accept_header:
-        raise web.HTTPFound('/login')
+        raise web.HTTPFound(get_login_redirect_location(request))
     else:
         return web.json_response({'error': 'Authentication required.'}, status=401)
 

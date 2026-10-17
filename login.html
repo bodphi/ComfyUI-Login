@@ -41,7 +41,7 @@
             {% endif %}
         </div>
         <div>
-            <form action="/login" method="post" id="form_login">
+            <form action="login" method="post" id="form_login">
                 <input type="hidden" id="guest_mode" name="guest_mode">
                 {% if first_time or prompt_for_username %}
                     <label>😸 Username:</label><input type="text" id="username" name="username" placeholder="Enter username" required><br>

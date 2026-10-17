@@ -3,7 +3,7 @@
 // This idea is from https://github.com/comfyanonymous/ComfyUI/issues/3192#issuecomment-2102772705. Thanks @pixelass!
 // Don't want this feature? Simply delete this file.
 //
-import { app } from "/scripts/app.js";
+import { app } from "../../scripts/app.js"; // relative, so it works behind a reverse-proxy path prefix (e.g. /comfy)
 
 app.registerExtension({
   name: "Comfy.Login.FreeMemory",
@@ -12,7 +12,7 @@ app.registerExtension({
 
     // Function to send the beacon
     function sendFreeMemoryRequest() {
-      navigator.sendBeacon("/free", JSON.stringify({ unload_models: true, free_memory: true }));
+      navigator.sendBeacon("free", JSON.stringify({ unload_models: true, free_memory: true })); // relative, so it works behind a reverse-proxy path prefix (e.g. /comfy)
     }
 
     // Reset the idle timer
